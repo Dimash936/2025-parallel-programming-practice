@@ -2,6 +2,10 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <cmath>
 
 
 std::istream& operator>>(std::istream& in, __int128& value) {
@@ -42,24 +46,36 @@ std::ostream& operator<<(std::ostream& out, __int128 value) {
     return out;
 }
 
+std::mutex mtx;
+__int128 n;
+std::vector<__int128> factors;
+void make(__int128_t start, __int128_t step) {
+    for(__int128 p = start; p * p <= n; p += step) {
+
+        while(n % p == 0) {
+            mtx.lock();
+            factors.push_back(p);
+            n /= p;
+            mtx.unlock();
+        }
+    }
+}
 int main() {
-    __int128 n;
     std::cin >> n;
     if (n <= 1) {
         return 0;
     }
-
-    std::vector<__int128> factors;
-    for (__int128 p = 2; p <= n / p; ++p) {
-        while (n % p == 0) {
-            factors.push_back(p);
-            n /= p;
-        }
+    unsigned int num_threads = std::thread::hardware_concurrency();
+    std::vector<std::thread> t;
+    for (unsigned int i = 0; i < num_threads; ++i) {
+        t.emplace_back(make, i + 2, num_threads);
+    }
+    for(auto& i : t) {
+        i.join();
     }
     if (n > 1) {
         factors.push_back(n);
     }
-
     for (const auto& factor : factors) {
         std::cout << factor << ' ';
     }
